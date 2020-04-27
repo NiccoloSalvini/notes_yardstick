@@ -1,0 +1,187 @@
+---
+title: "Yardstick"
+author: "Niccolò Salvini"
+date: "27/4/2020"
+output: rmarkdown::github_document
+---
+
+```{r, echo = FALSE, message=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-"
+)
+
+library(tidymodels)
+library(tidyverse)
+library(magrittr)
+library(dplyr)
+
+
+```
+
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/yardstick)](https://CRAN.R-project.org/package=yardstick)
+[![lifecycle](https://img.shields.io/badge/lifecycle-maturing-blue.svg)](https://www.tidyverse.org/lifecycle/#maturing)
+
+
+
+<img src="img/logo.png" alt="drawing" width="139"/>
+
+
+# A Gentle introduction
+
+Metric types:
+There are three main metric types in `yardstick`: _class_, _class probability_, and _numeric._ Each type of metric has standardized argument syntax, and all metrics return the same kind of output (a tibble with 3 columns). This standardization allows metrics to easily be grouped together and used with grouped data frames for computing on multiple resamples at once. Below are the three types of metrics, along with the types of the inputs they take.
+
+1. _Class_ metrics (hard predictions)
+    1. `truth` - factor
+    2. `estimate` - factor
+2. _Class probability_ metrics (soft predictions)
+    1. `truth` - factor
+    2. `estimate` / ... - multiple numeric columns containing class probabilities
+3. _Numeric_ metrics
+   1. `truth` - numeric
+    2. `estimate` - numeric
+
+## Example
+
+Suppose you create a classification model and predict on a new data set. You might have data that looks like this:
+
+
+```{r first}
+# two_class_example this is real data for a bin classification 
+head(two_class_example)
+
+```
+
+## for two class metrics
+
+
+You can use a `dplyr`-like syntax to compute common performance characteristics of the model and get
+them back in a data frame:
+
+
+```{r second}
+metrics(two_class_example, truth, predicted)
+
+```
+
+
+Or with different means, you calculating the `roc_auc()`
+
+```{r third}
+two_class_example %>%
+  roc_auc(truth, Class1)
+
+
+```
+
+## a further example
+
+
+### buuut first recall whats precision
+
+>The precision is the percentage of predicted truly relevant results of the total number of >predicted relevant results and characterizes the "purity in retrieval performance" 
+> -- <cite>Buckland and Gey, 1994</cite>
+
+
+about the `precision()` metrics:  calculate of a measurement system for finding relevant documents compared to reference results (the truth regarding relevance). Highly related functions are recall() and f_meas().
+
+`precision(data, truth, estimate, estimator = NULL, na_rm = TRUE, ...)`
+
+where:
+
+- **data**: Either a data.frame containing the truth and estimate columns
+- **truth**: 	The column identifier for the true class results (that is a `factor`), his should be an *unquoted* column name 
+- **estimate** :The column identifier for the predicted class results (that is also factor),to use an *unquoted* variable name.
+- **estimator**: One of: " _binary_", " _macro_", " _macro_weighted_", or " _micro_" , to specify th type of averaging to be done. This has its own employment in multiclass. The default will automatically choose " _binary_" or " _macro_"
+
+
+Value: A `tibble` with columns `.metric`, `.estimator`, and `.estimate` and 1 row of values.
+example:
+
+```{r precision_deepening}
+precision(two_class_example, truth, predicted)
+```
+
+
+
+## common general agreements in `Yardstick`
+
+- In `yardstick`, the default is to use the **first** level. To change this, a global option called `yardstick.event_first` is set to TRUE when the package is loaded.
+
+---
+
+## Multiclass metrics
+
+
+hpc_cv is a dataframe contains the predicted classes and class probabilities for Linear Discriminant Analysis model fit to the HPC data set from Kuhn and Johnson (2013). These data are the assessment sets from a 10-fold Cross-Validation scheme. The data column columns for the true class (obs), the class prediction (pred) and columns for each class probability (columns VF, F, M, and L). Additionally, a column for the resample indicator is included.
+
+```{r fourth}
+data("hpc_cv")
+hpc_cv = as_tibble(hpc_cv)
+hpc_cv
+
+```
+
+Here you are computing the precision for multiclass with the default string for **estimator**: _macro_
+
+```{r fifth}
+# Macro averaged multiclass precision
+precision(hpc_cv, obs, pred)
+
+
+```
+ 
+Here instaed you are changing the **estimator** to _micro_
+ 
+```{r sixth}
+# Micro averaged multiclass precision
+precision(hpc_cv, obs, pred, estimator = "micro")
+
+
+```
+
+
+[[[[[vedere meglio cosa sono micro e macro]]]]]  ---> see references
+
+
+## Calculating metrics on resample
+
+
+If you have multiple resamples of a model, you can use a metric on a grouped data frame to calculate the metric across all resamples at once. This happens when you are using yardstick in combination with the rsamples that allows you to have multiple resamples.
+This calculates multiclass ROC AUC using the method described in Hand, Till (2001), and does it across all 10 resamples at once.
+
+
+```{r multiclass}
+hpc_cv %>%
+  group_by(Resample) %>%
+  roc_auc(obs, VF:L)
+
+```
+
+
+## Autoplot methods for easy visualization
+
+Curve based methods such as `roc_curve()`, `pr_curve()` and `gain_curve()` all have ggplot2::`autoplot()` methods that allow for powerful and easy visualization.
+
+```{r autoplot}
+library(ggplot2)
+
+hpc_cv %>%
+  group_by(Resample) %>%
+  roc_curve(obs, VF:L) %>%
+  autoplot()
+
+
+```
+
+# last deepening on te `autoplot()`
+
+autoplot uses `ggplot2` to draw a particular plot for an object of a particular class in a single command. This defines the **S3** (which are all in the tidymodels) generic that other classes and packages can extend.
+
+
+
+
+
+
